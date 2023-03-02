@@ -10,14 +10,22 @@ import SpriteKit
 class GameScene: SKScene {
     var gameTimer: Timer?
     var fireworks = [SKNode]()
+    var isGameOver = false
+    
+    var scoreLabel: SKLabelNode!
 
     let leftEdge = -22
     let bottomEdge = -22
     let rightEdge = 1024 + 22
+    
+    var numOfFireworks = 0
+    var gameOverLabel: SKLabelNode!
+    var explodeButton: SKLabelNode!
+
 
     var score = 0 {
         didSet {
-            // your code here
+            scoreLabel.text = "Score - \(score)"
         }
     }
   
@@ -27,6 +35,19 @@ class GameScene: SKScene {
         background.blendMode = .replace
         background.zPosition = -1
         addChild(background)
+        
+        scoreLabel = SKLabelNode(fontNamed: "Verdana")
+        scoreLabel.horizontalAlignmentMode = .left
+        scoreLabel.verticalAlignmentMode = .bottom
+        scoreLabel.text = "Score - 0"
+        scoreLabel.color = .cyan
+        addChild(scoreLabel)
+        
+        gameOverLabel = SKLabelNode(fontNamed: "Verdana")
+        gameOverLabel.position = CGPoint(x: 512, y: 384)
+        gameOverLabel.horizontalAlignmentMode = .center
+        gameOverLabel.text = "Game Over!"
+        gameOverLabel.zPosition = 2
 
         gameTimer = Timer.scheduledTimer(timeInterval: 6, target: self, selector: #selector(launchFireworks), userInfo: nil, repeats: true)
     }
@@ -64,12 +85,18 @@ class GameScene: SKScene {
             emitter.position = CGPoint(x: 0, y: -22)
             node.addChild(emitter)
         }
-
         fireworks.append(node)
         addChild(node)
     }
     
     @objc func launchFireworks() {
+        numOfFireworks += 1
+        
+        if numOfFireworks >= 5 {
+            endGame()
+            return
+        }
+        
         let movementAmount: CGFloat = 1800
 
         switch Int.random(in: 0...3) {
@@ -86,7 +113,7 @@ class GameScene: SKScene {
             createFirework(xMovement: -100, x: 512 - 100, y: bottomEdge)
             createFirework(xMovement: 100, x: 512 + 100, y: bottomEdge)
             createFirework(xMovement: 200, x: 512 + 200, y: bottomEdge)
-
+            
         case 2:
             createFirework(xMovement: movementAmount, x: leftEdge, y: bottomEdge + 400)
             createFirework(xMovement: movementAmount, x: leftEdge, y: bottomEdge + 300)
@@ -146,5 +173,60 @@ class GameScene: SKScene {
                 firework.removeFromParent()
             }
         }
+    }
+    
+    func explode(firework: SKNode) {
+        if let emitter = SKEmitterNode(fileNamed: "explode") {
+            emitter.position = firework.position
+            addChild(emitter)
+    
+        let wait = SKAction.wait(forDuration: 1.5)
+        let remove = SKAction.run {
+        emitter.removeFromParent()
+    }
+        let actionSequence = SKAction.sequence([wait, remove])
+        emitter.run(actionSequence)
+    }
+        firework.removeFromParent()
+}
+    
+    func explodeFireworks() {
+        var numExploded = 0
+
+        for (index, fireworkContainer) in fireworks.enumerated().reversed() {
+            guard let firework = fireworkContainer.children.first as? SKSpriteNode else { continue }
+
+            if firework.name == "selected" {
+                explode(firework: fireworkContainer)
+                fireworks.remove(at: index)
+                numExploded += 1
+            }
+            
+            
+        }
+
+        switch numExploded {
+        case 0:
+            break
+        case 1:
+            score += 200
+        case 2:
+            score += 500
+        case 3:
+            score += 1500
+        case 4:
+            score += 2500
+        default:
+            score += 4000
+        }
+    }
+    
+    func endGame() {
+        gameTimer?.invalidate()
+        
+        for node in fireworks {
+            node.removeFromParent()
+        }
+        addChild(gameOverLabel)
     }
 }
